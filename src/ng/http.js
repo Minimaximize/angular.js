@@ -1135,6 +1135,14 @@ function $HttpProvider() {
     $http.defaults = defaults;
 
 
+    // V8LeakFix
+    $http.dispose = function () {
+        for (var v in $http)
+            if ($http.hasOwnProperty(v))
+                delete $http[v];
+    };
+
+
     return $http;
 
 

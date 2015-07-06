@@ -779,7 +779,8 @@ function $RootScopeProvider() {
                       lastDirtyWatch = watch;
                       watch.last = watch.eq ? copy(value, null) : value;
                       watch.fn(value, ((last === initWatchVal) ? value : last), current);
-                      if (ttl < 5) {
+                      // V8LeakFix
+                      /*if (ttl < 5) {
                         logIdx = 4 - ttl;
                         if (!watchLog[logIdx]) watchLog[logIdx] = [];
                         watchLog[logIdx].push({
@@ -787,7 +788,7 @@ function $RootScopeProvider() {
                           newVal: value,
                           oldVal: last
                         });
-                      }
+                      }*/
                     } else if (watch === lastDirtyWatch) {
                       // If the most recently dirty watcher is now clean, short circuit since the remaining watchers
                       // have already been tested.
@@ -873,6 +874,11 @@ function $RootScopeProvider() {
       $destroy: function() {
         // We can't destroy a scope that has been already destroyed.
         if (this.$$destroyed) return;
+
+        // V8LeakFix (recursively destroy child scopes)
+        while (this.$$childHead)
+          this.$$childHead.$destroy();
+
         var parent = this.$parent;
 
         this.$broadcast('$destroy');
@@ -908,6 +914,7 @@ function $RootScopeProvider() {
         // - https://github.com/angular/angular.js/issues/6794#issuecomment-38648909
         // - https://github.com/angular/angular.js/issues/1313#issuecomment-10378451
 
+        this['this'] = this.$$ChildScope = // V8LeakFix
         this.$parent = this.$$nextSibling = this.$$prevSibling = this.$$childHead =
             this.$$childTail = this.$root = this.$$watchers = null;
       },

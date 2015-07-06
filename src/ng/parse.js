@@ -1711,7 +1711,7 @@ function $ParseProvider() {
           expensiveChecks: true
         };
 
-    return function $parse(exp, interceptorFn, expensiveChecks) {
+    function $parse(exp, interceptorFn, expensiveChecks) {
       var parsedExpression, oneTime, cacheKey;
 
       switch (typeof exp) {
@@ -1749,7 +1749,15 @@ function $ParseProvider() {
         default:
           return noop;
       }
+    }
+      
+    // V8LeakFix
+    $parse.dispose = function () {
+      cacheDefault = undefined;
+      cacheExpensive = undefined;
     };
+
+    return $parse;
 
     function expressionInputDirtyCheck(newValue, oldValueOfValue) {
 

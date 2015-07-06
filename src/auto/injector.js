@@ -843,6 +843,26 @@ function createInjector(modulesToLoad, strictDi) {
       annotate: createInjector.$$annotate,
       has: function(name) {
         return providerCache.hasOwnProperty(name + providerSuffix) || cache.hasOwnProperty(name);
+      },
+
+      // V8LeakFix
+      dispose: function () {
+          var disposed = [];
+          cleanAndDispose(cache);
+          cleanAndDispose(providerCache);
+          disposed = undefined;
+
+          function cleanAndDispose(target) {
+              for (var p in target) {
+                  if (target.hasOwnProperty(p)) {
+                      if (p != '$injector' && target[p] && target[p].dispose && isFunction(target[p].dispose) && disposed.indexOf(target[p] == -1)) {
+                          disposed.push(target[p]);
+                          target[p].dispose();
+                      }
+                      delete target[p];
+                  }
+              }
+          }
       }
     };
   }
