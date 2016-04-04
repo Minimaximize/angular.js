@@ -4,6 +4,8 @@ echo "#################################"
 echo "####  Jenkins Build  ############"
 echo "#################################"
 
+source scripts/jenkins/set-node-version.sh
+
 # Enable tracing and exit on first failure
 set -xe
 
@@ -19,6 +21,7 @@ rm -f angular.js.size
 
 
 # BUILD #
+npm install -g grunt-cli
 npm install --color false
 grunt ci-checks package --no-color
 

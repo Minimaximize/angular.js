@@ -5,8 +5,9 @@
 
 # Angular Expressions
 
-Angular expressions are JavaScript-like code snippets that are usually placed in bindings such as
-`{{ expression }}`.
+Angular expressions are JavaScript-like code snippets that are mainly placed in
+interpolation bindings such as `<span title="{{ attrBinding }}">{{ textBinding }}</span>`,
+but also used directly in directive attributes such as `ng-click="functionExpression()"`.
 
 For example, these are valid expressions in Angular:
 
@@ -35,7 +36,9 @@ Angular expressions are like JavaScript expressions with the following differenc
   * **No RegExp Creation With Literal Notation:** You cannot create regular expressions
     in an Angular expression.
 
-  * **No Comma And Void Operators:** You cannot use `,` or `void` in an Angular expression.
+  * **No Object Creation With New Operator:** You cannot use `new` operator in an Angular expression.
+
+  * **No Comma And Void Operators:** You cannot use `,` or `void` operators in an Angular expression.
 
   * **Filters:** You can use {@link guide/filter filters} within expressions to format data before
     displaying it.
@@ -70,7 +73,7 @@ You can try evaluating different expressions here:
       <ul>
        <li ng-repeat="expr in exprs track by $index">
          [ <a href="" ng-click="removeExp($index)">X</a> ]
-         <tt>{{expr}}</tt> => <span ng-bind="$parent.$eval(expr)"></span>
+         <code>{{expr}}</code> => <span ng-bind="$parent.$eval(expr)"></span>
         </li>
       </ul>
     </div>
@@ -113,6 +116,9 @@ This restriction is intentional. It prevents accidental access to the global sta
 Instead use services like `$window` and `$location` in functions called from expressions. Such services
 provide mockable access to globals.
 
+It is possible to access the context object using the identifier `this` and the locals object using the
+identifier `$locals`.
+
 <example module="expressionExample">
   <file name="index.html">
     <div class="example2" ng-controller="ExampleController">
@@ -140,6 +146,9 @@ provide mockable access to globals.
         return;
       }
       element(by.css('[ng-click="greet()"]')).click();
+
+      // We need to give the browser time to display the alert
+      browser.wait(protractor.ExpectedConditions.alertIsPresent(), 1000);
 
       var alertDialog = browser.switchTo().alert();
 
@@ -277,7 +286,7 @@ result is a non-undefined value (see value stabilization algorithm below).
 </example>
 
 
-### Why this feature
+### Reasons for using one-time binding
 
 The main purpose of one-time binding expression is to provide a way to create a binding
 that gets deregistered and frees up resources once the binding is stabilized.

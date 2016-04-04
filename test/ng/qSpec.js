@@ -51,7 +51,7 @@ describe('q', function() {
       log.push(logPrefix + '->throw(' +  _argToString(returnVal) + ')');
       throw returnVal;
     } else {
-      if (returnVal === undefined) {
+      if (isUndefined(returnVal)) {
         log.push(logPrefix);
       } else {
         log.push(logPrefix + '->' +  _argToString(returnVal));
@@ -219,6 +219,15 @@ describe('q', function() {
       expect(typeof promise.then).toBe('function');
       expect(typeof promise.catch).toBe('function');
       expect(typeof promise.finally).toBe('function');
+    });
+
+    it('should support the instanceof operator', function() {
+      /*jshint newcap: false */
+      var promise = new q(noop);
+      expect(promise instanceof q).toBe(true);
+      promise = q(noop);
+      expect(promise instanceof q).toBe(true);
+      /*jshint newcap: true */
     });
 
 
@@ -824,7 +833,7 @@ describe('q', function() {
 
         expect(resolveSpy).not.toHaveBeenCalled();
         expect(rejectSpy).toHaveBeenCalled();
-        expect(rejectSpy.calls[0].args[0].message).
+        expect(rejectSpy.calls.argsFor(0)[0].message).
             toMatch(/\[\$q\:qcycle\] Expected promise to be resolved with value other than itself/);
       });
 
@@ -2081,7 +2090,7 @@ describe('q', function() {
 
       // Set up spies
       exceptionExceptionSpy = jasmine.createSpy('rethrowExceptionHandler')
-      .andCallFake(function rethrowExceptionHandler(e) {
+      .and.callFake(function rethrowExceptionHandler(e) {
         throw e;
       });
       errorSpy = jasmine.createSpy('errorSpy');
