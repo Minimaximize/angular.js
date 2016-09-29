@@ -40,7 +40,7 @@
       }[inputType || '_default_'];
     }
 
-    if (nodeName == 'option') {
+    if (nodeName === 'option') {
       element.parentNode.value = element.value;
       element = element.parentNode;
       eventType = 'change';
@@ -61,7 +61,7 @@
           evnt = new TransitionEvent(eventType, eventData);
         }
         catch (e) {
-          evnt = document.createEvent('TransitionEvent');
+          evnt = window.document.createEvent('TransitionEvent');
           evnt.initTransitionEvent(eventType, null, null, null, eventData.elapsedTime || 0);
         }
       }
@@ -74,14 +74,25 @@
           evnt = new AnimationEvent(eventType, eventData);
         }
         catch (e) {
-          evnt = document.createEvent('AnimationEvent');
+          evnt = window.document.createEvent('AnimationEvent');
           evnt.initAnimationEvent(eventType, null, null, null, eventData.elapsedTime || 0);
         }
       }
     } else if (/touch/.test(eventType) && supportsTouchEvents()) {
       evnt = createTouchEvent(element, eventType, x, y);
+    } else if (/key/.test(eventType)) {
+      evnt = window.document.createEvent('Events');
+      evnt.initEvent(eventType, eventData.bubbles, eventData.cancelable);
+      evnt.view = window;
+      evnt.ctrlKey = pressed('ctrl');
+      evnt.altKey = pressed('alt');
+      evnt.shiftKey = pressed('shift');
+      evnt.metaKey = pressed('meta');
+      evnt.keyCode = eventData.keyCode;
+      evnt.charCode = eventData.charCode;
+      evnt.which = eventData.which;
     } else {
-      evnt = document.createEvent('MouseEvents');
+      evnt = window.document.createEvent('MouseEvents');
       x = x || 0;
       y = y || 0;
       evnt.initMouseEvent(eventType, true, true, window, 0, x, y, x, y, pressed('ctrl'),
@@ -108,7 +119,12 @@
       return originalPreventDefault.apply(evnt, arguments);
     };
 
-    element.dispatchEvent(evnt);
+    if (!eventData.bubbles || supportsEventBubblingInDetachedTree() || isAttachedToDocument(element)) {
+      element.dispatchEvent(evnt);
+    } else {
+      triggerForPath(element, evnt);
+    }
+
     finalProcessDefault = !(angular['ff-684208-preventDefault'] || !fakeProcessDefault);
 
     delete angular['ff-684208-preventDefault'];
@@ -120,12 +136,12 @@
     if ('_cached' in supportsTouchEvents) {
       return supportsTouchEvents._cached;
     }
-    if (!document.createTouch || !document.createTouchList) {
+    if (!window.document.createTouch || !window.document.createTouchList) {
       supportsTouchEvents._cached = false;
       return false;
     }
     try {
-      document.createEvent('TouchEvent');
+      window.document.createEvent('TouchEvent');
     } catch (e) {
       supportsTouchEvents._cached = false;
       return false;
@@ -135,15 +151,63 @@
   }
 
   function createTouchEvent(element, eventType, x, y) {
-    var evnt = new Event(eventType);
+    var evnt = new window.Event(eventType);
     x = x || 0;
     y = y || 0;
 
-    var touch = document.createTouch(window, element, Date.now(), x, y, x, y);
-    var touches = document.createTouchList(touch);
+    var touch = window.document.createTouch(window, element, Date.now(), x, y, x, y);
+    var touches = window.document.createTouchList(touch);
 
     evnt.touches = touches;
 
     return evnt;
+  }
+
+  function supportsEventBubblingInDetachedTree() {
+    if ('_cached' in supportsEventBubblingInDetachedTree) {
+      return supportsEventBubblingInDetachedTree._cached;
+    }
+    supportsEventBubblingInDetachedTree._cached = false;
+    var doc = window.document;
+    if (doc) {
+      var parent = doc.createElement('div'),
+          child = parent.cloneNode();
+      parent.appendChild(child);
+      parent.addEventListener('e', function() {
+        supportsEventBubblingInDetachedTree._cached = true;
+      });
+      var evnt = window.document.createEvent('Events');
+      evnt.initEvent('e', true, true);
+      child.dispatchEvent(evnt);
+    }
+    return supportsEventBubblingInDetachedTree._cached;
+  }
+
+  function triggerForPath(element, evnt) {
+    var stop = false;
+
+    var _stopPropagation = evnt.stopPropagation;
+    evnt.stopPropagation = function() {
+      stop = true;
+      _stopPropagation.apply(evnt, arguments);
+    };
+    patchEventTargetForBubbling(evnt, element);
+    do {
+      element.dispatchEvent(evnt);
+    } while (!stop && (element = element.parentNode));
+  }
+
+  function patchEventTargetForBubbling(event, target) {
+    event._target = target;
+    Object.defineProperty(event, "target", {get: function() { return this._target;}});
+  }
+
+  function isAttachedToDocument(element) {
+    while (element = element.parentNode) {
+        if (element === window) {
+            return true;
+        }
+    }
+    return false;
   }
 }());
