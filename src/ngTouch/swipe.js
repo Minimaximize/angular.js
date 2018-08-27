@@ -6,6 +6,11 @@
      * @ngdoc service
      * @name $swipe
      *
+     * @deprecated
+     * sinceVersion="1.7.0"
+     *
+     * See the {@link ngTouch module} documentation for more information.
+     *
      * @description
      * The `$swipe` service is a service that abstracts the messier details of hold-and-drag swipe
      * behavior, to make implementing swipe-related directives more convenient.
@@ -117,13 +122,17 @@ ngTouch.factory('$swipe', [function() {
         totalX = 0;
         totalY = 0;
         lastPos = startCoords;
-        eventHandlers['start'] && eventHandlers['start'](startCoords, event);
+        if (eventHandlers['start']) {
+          eventHandlers['start'](startCoords, event);
+        }
       });
       var events = getEvents(pointerTypes, 'cancel');
       if (events) {
         element.on(events, function(event) {
           active = false;
-          eventHandlers['cancel'] && eventHandlers['cancel'](event);
+          if (eventHandlers['cancel']) {
+            eventHandlers['cancel'](event);
+          }
         });
       }
 
@@ -152,22 +161,27 @@ ngTouch.factory('$swipe', [function() {
         if (totalY > totalX) {
           // Allow native scrolling to take over.
           active = false;
-          eventHandlers['cancel'] && eventHandlers['cancel'](event);
+          if (eventHandlers['cancel']) {
+            eventHandlers['cancel'](event);
+          }
           return;
         } else {
           // Prevent the browser from scrolling.
           event.preventDefault();
-          eventHandlers['move'] && eventHandlers['move'](coords, event);
+          if (eventHandlers['move']) {
+            eventHandlers['move'](coords, event);
+          }
         }
       });
 
       element.on(getEvents(pointerTypes, 'end'), function(event) {
         if (!active) return;
         active = false;
-        eventHandlers['end'] && eventHandlers['end'](getCoordinates(event), event);
+        if (eventHandlers['end']) {
+          eventHandlers['end'](getCoordinates(event), event);
+        }
       });
     }
   };
 }]);
-
 

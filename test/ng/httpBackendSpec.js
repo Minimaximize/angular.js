@@ -14,7 +14,7 @@ describe('$httpBackend', function() {
       $$scripts: [],
       createElement: jasmine.createSpy('createElement').and.callFake(function() {
         // Return a proper script element...
-        return document.createElement(arguments[0]);
+        return window.document.createElement(arguments[0]);
       }),
       body: {
         appendChild: jasmine.createSpy('body.appendChild').and.callFake(function(script) {
@@ -22,7 +22,7 @@ describe('$httpBackend', function() {
         }),
         removeChild: jasmine.createSpy('body.removeChild').and.callFake(function(script) {
           var index = fakeDocument.$$scripts.indexOf(script);
-          if (index != -1) {
+          if (index !== -1) {
             fakeDocument.$$scripts.splice(index, 1);
           }
         })
@@ -72,7 +72,7 @@ describe('$httpBackend', function() {
 
   it('should pass the correct falsy value to send if falsy body is set (excluding undefined, NaN)',
     function() {
-      var values = [false, 0, "", null];
+      var values = [false, 0, '', null];
       angular.forEach(values, function(value) {
         $backend('GET', '/some-url', value, noop);
         xhr = MockXhr.$$lastInstance;
@@ -155,10 +155,11 @@ describe('$httpBackend', function() {
   });
 
   it('should not try to read response data when request is aborted', function() {
-    callback.and.callFake(function(status, response, headers) {
+    callback.and.callFake(function(status, response, headers, statusText) {
       expect(status).toBe(-1);
       expect(response).toBe(null);
       expect(headers).toBe(null);
+      expect(statusText).toBe('');
     });
     $backend('GET', '/url', null, callback, {}, 2000);
     xhr = MockXhr.$$lastInstance;
@@ -172,7 +173,78 @@ describe('$httpBackend', function() {
     expect(callback).toHaveBeenCalledOnce();
   });
 
-  it('should abort request on timeout', function() {
+  it('should complete the request on timeout', function() {
+    callback.and.callFake(function(status, response, headers, statusText, xhrStatus) {
+      expect(status).toBe(-1);
+      expect(response).toBe(null);
+      expect(headers).toBe(null);
+      expect(statusText).toBe('');
+      expect(xhrStatus).toBe('timeout');
+    });
+    $backend('GET', '/url', null, callback, {});
+    xhr = MockXhr.$$lastInstance;
+
+    expect(callback).not.toHaveBeenCalled();
+
+    xhr.ontimeout();
+    expect(callback).toHaveBeenCalledOnce();
+  });
+
+  it('should complete the request on abort', function() {
+    callback.and.callFake(function(status, response, headers, statusText, xhrStatus) {
+      expect(status).toBe(-1);
+      expect(response).toBe(null);
+      expect(headers).toBe(null);
+      expect(statusText).toBe('');
+      expect(xhrStatus).toBe('abort');
+    });
+    $backend('GET', '/url', null, callback, {});
+    xhr = MockXhr.$$lastInstance;
+
+    expect(callback).not.toHaveBeenCalled();
+
+    xhr.onabort();
+    expect(callback).toHaveBeenCalledOnce();
+  });
+
+  it('should complete the request on error', function() {
+    callback.and.callFake(function(status, response, headers, statusText, xhrStatus) {
+      expect(status).toBe(-1);
+      expect(response).toBe(null);
+      expect(headers).toBe(null);
+      expect(statusText).toBe('');
+      expect(xhrStatus).toBe('error');
+    });
+    $backend('GET', '/url', null, callback, {});
+    xhr = MockXhr.$$lastInstance;
+
+    expect(callback).not.toHaveBeenCalled();
+
+    xhr.onerror();
+    expect(callback).toHaveBeenCalledOnce();
+  });
+
+  it('should complete the request on success', function() {
+    callback.and.callFake(function(status, response, headers, statusText, xhrStatus) {
+      expect(status).toBe(200);
+      expect(response).toBe('response');
+      expect(headers).toBe('');
+      expect(statusText).toBe('');
+      expect(xhrStatus).toBe('complete');
+    });
+    $backend('GET', '/url', null, callback, {});
+    xhr = MockXhr.$$lastInstance;
+
+    expect(callback).not.toHaveBeenCalled();
+
+    xhr.statusText = '';
+    xhr.response = 'response';
+    xhr.status = 200;
+    xhr.onload();
+    expect(callback).toHaveBeenCalledOnce();
+  });
+
+  it('should abort request on numerical timeout', function() {
     callback.and.callFake(function(status, response) {
       expect(status).toBe(-1);
     });
@@ -192,9 +264,10 @@ describe('$httpBackend', function() {
   });
 
 
-  it('should abort request on timeout promise resolution', inject(function($timeout) {
-    callback.and.callFake(function(status, response) {
+  it('should abort request on $timeout promise resolution', inject(function($timeout) {
+    callback.and.callFake(function(status, response, headers, statusText, xhrStatus) {
       expect(status).toBe(-1);
+      expect(xhrStatus).toBe('timeout');
     });
 
     $backend('GET', '/url', null, callback, {}, $timeout(noop, 2000));
@@ -228,6 +301,24 @@ describe('$httpBackend', function() {
   }));
 
 
+  it('should abort request on canceler promise resolution', inject(function($q, $browser) {
+    var canceler = $q.defer();
+
+    callback.and.callFake(function(status, response, headers, statusText, xhrStatus) {
+      expect(status).toBe(-1);
+      expect(xhrStatus).toBe('abort');
+    });
+
+    $backend('GET', '/url', null, callback, {}, canceler.promise);
+    xhr = MockXhr.$$lastInstance;
+
+    canceler.resolve();
+    $browser.defer.flush();
+
+    expect(callback).toHaveBeenCalledOnce();
+  }));
+
+
   it('should cancel timeout on completion', function() {
     callback.and.callFake(function(status, response) {
       expect(status).toBe(200);
@@ -248,10 +339,27 @@ describe('$httpBackend', function() {
   });
 
 
+  it('should call callback with xhrStatus "abort" on explicit xhr.abort() when $timeout is set', inject(function($timeout) {
+    callback.and.callFake(function(status, response, headers, statusText, xhrStatus) {
+      expect(status).toBe(-1);
+      expect(xhrStatus).toBe('abort');
+    });
+
+    $backend('GET', '/url', null, callback, {}, $timeout(noop, 2000));
+    xhr = MockXhr.$$lastInstance;
+    spyOn(xhr, 'abort').and.callThrough();
+
+    xhr.abort();
+
+    expect(callback).toHaveBeenCalledOnce();
+  }));
+
+
   it('should set withCredentials', function() {
     $backend('GET', '/some.url', null, callback, {}, null, true);
     expect(MockXhr.$$lastInstance.withCredentials).toBe(true);
   });
+
 
   it('should call $xhrFactory with method and url', function() {
     var mockXhrFactory = jasmine.createSpy('mockXhrFactory').and.callFake(createMockXhr);
@@ -314,7 +422,7 @@ describe('$httpBackend', function() {
 
   describe('JSONP', function() {
 
-    var SCRIPT_URL = /([^\?]*)\?cb=(.*)/;
+    var SCRIPT_URL = /([^?]*)\?cb=(.*)/;
 
 
     it('should add script tag for JSONP request', function() {
@@ -331,7 +439,7 @@ describe('$httpBackend', function() {
 
       expect(url[1]).toBe('http://example.org/path');
       $jsonpCallbacks[url[2]]('some-data');
-      browserTrigger(script, "load");
+      browserTrigger(script, 'load');
 
       expect(callback).toHaveBeenCalledOnce();
     });
@@ -348,7 +456,7 @@ describe('$httpBackend', function() {
           callbackId = script.src.match(SCRIPT_URL)[2];
 
       $jsonpCallbacks[callbackId]('some-data');
-      browserTrigger(script, "load");
+      browserTrigger(script, 'load');
 
       expect($jsonpCallbacks.removeCallback).toHaveBeenCalledOnceWith(callbackId);
       expect(fakeDocument.body.removeChild).toHaveBeenCalledOnceWith(script);
@@ -391,6 +499,7 @@ describe('$httpBackend', function() {
     // TODO(vojta): test whether it fires "async-end" on both success and error
   });
 
+
   describe('protocols that return 0 status code', function() {
 
     function respond(status, content) {
@@ -400,10 +509,12 @@ describe('$httpBackend', function() {
       xhr.onload();
     }
 
+    beforeEach(function() {
+      $backend = createHttpBackend($browser, createMockXhr);
+    });
+
 
     it('should convert 0 to 200 if content and file protocol', function() {
-      $backend = createHttpBackend($browser, createMockXhr);
-
       $backend('GET', 'file:///whatever/index.html', null, callback);
       respond(0, 'SOME CONTENT');
 
@@ -412,8 +523,6 @@ describe('$httpBackend', function() {
     });
 
     it('should convert 0 to 200 if content for protocols other than file', function() {
-      $backend = createHttpBackend($browser, createMockXhr);
-
       $backend('GET', 'someProtocol:///whatever/index.html', null, callback);
       respond(0, 'SOME CONTENT');
 
@@ -422,8 +531,6 @@ describe('$httpBackend', function() {
     });
 
     it('should convert 0 to 404 if no content and file protocol', function() {
-      $backend = createHttpBackend($browser, createMockXhr);
-
       $backend('GET', 'file:///whatever/index.html', null, callback);
       respond(0, '');
 
@@ -432,8 +539,6 @@ describe('$httpBackend', function() {
     });
 
     it('should not convert 0 to 404 if no content for protocols other than file', function() {
-      $backend = createHttpBackend($browser, createMockXhr);
-
       $backend('GET', 'someProtocol:///whatever/index.html', null, callback);
       respond(0, '');
 
@@ -447,20 +552,18 @@ describe('$httpBackend', function() {
 
       //temporarily overriding the DOM element to pretend that the test runs origin with file:// protocol
       urlParsingNode = {
-        hash: "#/C:/",
-        host: "",
-        hostname: "",
-        href: "file:///C:/base#!/C:/foo",
-        pathname: "/C:/foo",
-        port: "",
-        protocol: "file:",
-        search: "",
+        hash: '#/C:/',
+        host: '',
+        hostname: '',
+        href: 'file:///C:/base#!/C:/foo',
+        pathname: '/C:/foo',
+        port: '',
+        protocol: 'file:',
+        search: '',
         setAttribute: angular.noop
       };
 
       try {
-
-        $backend = createHttpBackend($browser, createMockXhr);
 
         $backend('GET', '/whatever/index.html', null, callback);
         respond(0, '');
@@ -473,10 +576,7 @@ describe('$httpBackend', function() {
       }
     });
 
-
     it('should return original backend status code if different from 0', function() {
-      $backend = createHttpBackend($browser, createMockXhr);
-
       // request to http://
       $backend('POST', 'http://rest_api/create_whatever', null, callback);
       respond(201, '');
