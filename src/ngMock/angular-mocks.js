@@ -2105,16 +2105,6 @@ function stripQueryAndHash(url) {
 function MockHttpExpectation(expectedMethod, expectedUrl, expectedData, expectedHeaders,
                              expectedKeys) {
 
-  function getUrlParams(u) {
-    var params = u.slice(u.indexOf('?') + 1).split('&');
-    return params.sort();
-  }
-
-  function compareUrl(u) {
-    return (url.slice(0, url.indexOf('?')) === u.slice(0, u.indexOf('?')) &&
-      getUrlParams(url).join() === getUrlParams(u).join());
-  }
-
   this.data = expectedData;
   this.headers = expectedHeaders;
 

@@ -413,14 +413,6 @@ describe('browser', function() {
       expect(browser.url()).toEqual('https://another.com/#foo');
     });
 
-    it('should strip an empty hash fragment', function() {
-      fakeWindow.location.href = 'http://test.com#';
-      expect(browser.url()).toEqual('http://test.com');
-
-      fakeWindow.location.href = 'https://another.com#foo';
-      expect(browser.url()).toEqual('https://another.com#foo');
-    });
-
     it('should use history.pushState when available', function() {
       sniffer.history = true;
       browser.url('http://new.org');
