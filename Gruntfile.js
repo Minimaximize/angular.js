@@ -4,6 +4,7 @@ var serveFavicon = require('serve-favicon');
 var serveStatic = require('serve-static');
 var serveIndex = require('serve-index');
 var files = require('./angularFiles').files;
+var mergeFilesFor = require('./angularFiles').mergeFilesFor;
 var util = require('./lib/grunt/utils.js');
 var versionInfo = require('./lib/versions/version-info');
 var path = require('path');
@@ -13,7 +14,7 @@ var semver = require('semver');
 var exec = require('shelljs').exec;
 var pkg = require(__dirname + '/package.json');
 
-var docsScriptFolder = 'scripts/docs.angularjs.org-firebase';
+var docsScriptFolder = util.docsScriptFolder;
 
 // Node.js version checks
 if (!semver.satisfies(process.version, pkg.engines.node)) {
@@ -30,7 +31,7 @@ if (!semver.satisfies(currentYarnVersion, expectedYarnVersion)) {
 }
 
 // Grunt CLI version checks
-var expectedGruntVersion = pkg.engines.grunt;
+var expectedGruntVersion = pkg.engines['grunt-cli'];
 var currentGruntVersions = exec('grunt --version', {silent: true}).stdout;
 var match = /^grunt-cli v(.+)$/m.exec(currentGruntVersions);
 if (!match) {
@@ -44,7 +45,7 @@ if (!match) {
 }
 
 // Ensure Node.js dependencies have been installed
-if (!process.env.TRAVIS && !process.env.JENKINS_HOME) {
+if (!process.env.CI) {
   var yarnOutput = exec('yarn install');
   if (yarnOutput.code !== 0) {
     throw new Error('Yarn install failed: ' + yarnOutput.stderr);
@@ -108,16 +109,14 @@ module.exports = function(grunt) {
       },
       testserver: {
         options: {
-          // We use end2end task (which does not start the webserver)
-          // and start the webserver as a separate process (in travis_build.sh)
-          // to avoid https://github.com/joyent/libuv/issues/826
+          // We start the webserver as a separate process from the E2E tests
           port: 8000,
           hostname: '0.0.0.0',
           middleware: function(connect, options) {
             var base = Array.isArray(options.base) ? options.base[options.base.length - 1] : options.base;
             return [
               function(req, resp, next) {
-                // cache get requests to speed up tests on travis
+                // cache GET requests to speed up tests
                 if (req.method === 'GET') {
                   resp.setHeader('Cache-control', 'public, max-age=3600');
                 }
@@ -141,7 +140,9 @@ module.exports = function(grunt) {
       'jquery-2.2': 'karma-jquery-2.2.conf.js',
       'jquery-2.1': 'karma-jquery-2.1.conf.js',
       docs: 'karma-docs.conf.js',
-      modules: 'karma-modules.conf.js'
+      modules: 'karma-modules.conf.js',
+      'modules-ngAnimate': 'karma-modules-ngAnimate.conf.js',
+      'modules-ngMock': 'karma-modules-ngMock.conf.js'
     },
 
 
@@ -157,8 +158,7 @@ module.exports = function(grunt) {
 
     protractor: {
       normal: 'protractor-conf.js',
-      travis: 'protractor-travis-conf.js',
-      jenkins: 'protractor-jenkins-conf.js'
+      circleci: 'protractor-circleci-conf.js'
     },
 
 
@@ -211,6 +211,12 @@ module.exports = function(grunt) {
         dest: 'build/angular-touch.js',
         src: util.wrap(files['angularModules']['ngTouch'], 'module')
       },
+      touchModuleTestBundle: {
+        dest: 'build/test-bundles/angular-touch.js',
+        prefix: 'src/module.prefix',
+        src: mergeFilesFor('karmaModules-ngTouch'),
+        suffix: 'src/module.suffix'
+      },
       mocks: {
         dest: 'build/angular-mocks.js',
         src: util.wrap(files['angularModules']['ngMock'], 'module'),
@@ -220,17 +226,41 @@ module.exports = function(grunt) {
         dest: 'build/angular-sanitize.js',
         src: util.wrap(files['angularModules']['ngSanitize'], 'module')
       },
+      sanitizeModuleTestBundle: {
+        dest: 'build/test-bundles/angular-sanitize.js',
+        prefix: 'src/module.prefix',
+        src: mergeFilesFor('karmaModules-ngSanitize'),
+        suffix: 'src/module.suffix'
+      },
       resource: {
         dest: 'build/angular-resource.js',
         src: util.wrap(files['angularModules']['ngResource'], 'module')
+      },
+      resourceModuleTestBundle: {
+        dest: 'build/test-bundles/angular-resource.js',
+        prefix: 'src/module.prefix',
+        src: mergeFilesFor('karmaModules-ngResource'),
+        suffix: 'src/module.suffix'
       },
       messageformat: {
         dest: 'build/angular-message-format.js',
         src: util.wrap(files['angularModules']['ngMessageFormat'], 'module')
       },
+      messageformatModuleTestBundle: {
+        dest: 'build/test-bundles/angular-message-format.js',
+        prefix: 'src/module.prefix',
+        src: mergeFilesFor('karmaModules-ngMessageFormat'),
+        suffix: 'src/module.suffix'
+      },
       messages: {
         dest: 'build/angular-messages.js',
         src: util.wrap(files['angularModules']['ngMessages'], 'module')
+      },
+      messagesModuleTestBundle: {
+        dest: 'build/test-bundles/angular-messages.js',
+        prefix: 'src/module.prefix',
+        src: mergeFilesFor('karmaModules-ngMessages'),
+        suffix: 'src/module.suffix'
       },
       animate: {
         dest: 'build/angular-animate.js',
@@ -240,13 +270,31 @@ module.exports = function(grunt) {
         dest: 'build/angular-route.js',
         src: util.wrap(files['angularModules']['ngRoute'], 'module')
       },
+      routeModuleTestBundle: {
+        dest: 'build/test-bundles/angular-route.js',
+        prefix: 'src/module.prefix',
+        src: mergeFilesFor('karmaModules-ngRoute'),
+        suffix: 'src/module.suffix'
+      },
       cookies: {
         dest: 'build/angular-cookies.js',
         src: util.wrap(files['angularModules']['ngCookies'], 'module')
       },
+      cookiesModuleTestBundle: {
+        dest: 'build/test-bundles/angular-cookies.js',
+        prefix: 'src/module.prefix',
+        src: mergeFilesFor('karmaModules-ngCookies'),
+        suffix: 'src/module.suffix'
+      },
       aria: {
         dest: 'build/angular-aria.js',
         src: util.wrap(files['angularModules']['ngAria'], 'module')
+      },
+      ariaModuleTestBundle: {
+        dest: 'build/test-bundles/angular-aria.js',
+        prefix: 'src/module.prefix',
+        src: mergeFilesFor('karmaModules-ngAria'),
+        suffix: 'src/module.suffix'
       },
       parseext: {
         dest: 'build/angular-parse-ext.js',
@@ -321,10 +369,9 @@ module.exports = function(grunt) {
       },
       deployFirebaseCode: {
         files: [
-          // copy files that are not handled by compress
           {
             cwd: 'build',
-            src: '**/*.{zip,jpg,jpeg,png}',
+            src: '**',
             dest: 'deploy/code/' + deployVersion + '/',
             expand: true
           }
@@ -372,16 +419,6 @@ module.exports = function(grunt) {
         expand: true,
         dot: true,
         dest: dist + '/'
-      },
-      deployFirebaseCode: {
-        options: {
-          mode: 'gzip'
-        },
-        // Already compressed files should not be compressed again
-        src: ['**', '!**/*.{zip,png,jpeg,jpg}'],
-        cwd: 'build',
-        expand: true,
-        dest: 'deploy/code/' + deployVersion + '/'
       }
     },
 
@@ -430,7 +467,9 @@ module.exports = function(grunt) {
   grunt.registerTask('test:jquery-2.1', 'Run the jQuery 2.1 unit tests with Karma', ['tests:jquery-2.1']);
   grunt.registerTask('test:modules', 'Run the Karma module tests with Karma', [
     'build',
-    'tests:modules'
+    'tests:modules',
+    'tests:modules-ngAnimate',
+    'tests:modules-ngMock'
   ]);
   grunt.registerTask('test:docs', 'Run the doc-page tests with Karma', ['package', 'tests:docs']);
   grunt.registerTask('test:unit', 'Run unit, jQuery and Karma module tests with Karma', [
@@ -445,14 +484,9 @@ module.exports = function(grunt) {
     'connect:testserver',
     'protractor:normal'
   ]);
-  grunt.registerTask('test:travis-protractor', 'Run the end to end tests with Protractor for Travis CI builds', [
+  grunt.registerTask('test:circleci-protractor', 'Run the end to end tests with Protractor for CircleCI builds', [
     'connect:testserver',
-    'protractor:travis'
-  ]);
-  grunt.registerTask('test:ci-protractor', 'Run the end to end tests with Protractor for Jenkins CI builds', [
-    'webdriver',
-    'connect:testserver',
-    'protractor:jenkins'
+    'protractor:circleci'
   ]);
   grunt.registerTask('test:e2e', 'Alias for test:protractor', ['test:protractor']);
   grunt.registerTask('test:promises-aplus',[
@@ -482,10 +516,8 @@ module.exports = function(grunt) {
     'eslint'
   ]);
   grunt.registerTask('prepareDeploy', [
-    'package',
-    'compress:deployFirebaseCode',
     'copy:deployFirebaseCode',
-    'firebaseDocsJsonForTravis',
+    'firebaseDocsJsonForCI',
     'copy:deployFirebaseDocs'
   ]);
   grunt.registerTask('default', ['package']);
@@ -493,7 +525,7 @@ module.exports = function(grunt) {
 
 
 function reportOrFail(message) {
-  if (process.env.TRAVIS || process.env.JENKINS_HOME) {
+  if (process.env.CI) {
     throw new Error(message);
   } else {
     console.log('===============================================================================');

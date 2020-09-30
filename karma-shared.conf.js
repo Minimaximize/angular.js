@@ -23,12 +23,7 @@ module.exports = function(config, specificOptions) {
     // SauceLabs config for local development.
     sauceLabs: {
       testName: specificOptions.testName || 'AngularJS',
-      startConnect: true,
-      options: {
-        // We need selenium version +2.46 for Firefox 39 and the last selenium version for OS X is 2.45.
-        // TODO: Uncomment when there is a selenium 2.46 available for OS X.
-        // 'selenium-version': '2.46.0'
-      }
+      startConnect: true
     },
 
     // BrowserStack config for local development.
@@ -65,13 +60,11 @@ module.exports = function(config, specificOptions) {
       'SL_Safari-1': {
         base: 'SauceLabs',
         browserName: 'safari',
-        platform: 'OS X 10.12',
         version: 'latest-1'
       },
       'SL_Safari': {
         base: 'SauceLabs',
         browserName: 'safari',
-        platform: 'OS X 10.12',
         version: 'latest'
       },
       'SL_IE_9': {
@@ -104,17 +97,15 @@ module.exports = function(config, specificOptions) {
         platform: 'Windows 10',
         version: 'latest-1'
       },
-      'SL_iOS_10': {
+      'SL_iOS': {
         base: 'SauceLabs',
         browserName: 'iphone',
-        platform: 'OS X 10.12',
-        version: '10.3'
+        version: 'latest'
       },
-      'SL_iOS_11': {
+      'SL_iOS-1': {
         base: 'SauceLabs',
         browserName: 'iphone',
-        platform: 'OS X 10.12',
-        version: '11.2'
+        version: 'latest-1'
       },
 
       'BS_Chrome': {
@@ -178,39 +169,9 @@ module.exports = function(config, specificOptions) {
   });
 
 
-  if (process.env.TRAVIS) {
-    var buildLabel = 'TRAVIS #' + process.env.TRAVIS_BUILD_NUMBER + ' (' + process.env.TRAVIS_BUILD_ID + ')';
-
-    // Karma (with socket.io 1.x) buffers by 50 and 50 tests can take a long time on IEs;-)
-    config.browserNoActivityTimeout = 120000;
-
-    config.browserStack.build = buildLabel;
-    config.browserStack.startTunnel = false;
-    config.browserStack.tunnelIdentifier = process.env.TRAVIS_JOB_NUMBER;
-
-    config.sauceLabs.build = buildLabel;
-    config.sauceLabs.startConnect = false;
-    config.sauceLabs.tunnelIdentifier = process.env.TRAVIS_JOB_NUMBER;
-    config.sauceLabs.recordScreenshots = true;
-
-    // Debug logging into a file, that we print out at the end of the build.
-    config.loggers.push({
-      type: 'file',
-      filename: process.env.LOGS_DIR + '/' + (specificOptions.logFile || 'karma.log')
-    });
-
-    if (process.env.BROWSER_PROVIDER === 'saucelabs' || !process.env.BROWSER_PROVIDER) {
-      // Allocating a browser can take pretty long (eg. if we are out of capacity and need to wait
-      // for another build to finish) and so the `captureTimeout` typically kills
-      // an in-queue-pending request, which makes no sense.
-      config.captureTimeout = 0;
-    }
-  }
-
-
   // Terrible hack to workaround inflexibility of log4js:
   // - ignore web-server's 404 warnings,
-  // - ignore DEBUG logs (on Travis), we log them into a file instead.
+  // - ignore DEBUG logs (on CI), we log them into a file instead.
   var IGNORED_404 = [
     '/favicon.ico',
     '/%7B%7BtestUrl%7D%7D',
@@ -236,8 +197,8 @@ module.exports = function(config, specificOptions) {
         return;
       }
 
-      // on Travis, ignore DEBUG statements
-      if (process.env.TRAVIS && log.level.levelStr === config.LOG_DEBUG) {
+      // on CI, ignore DEBUG statements
+      if (process.env.CI && log.level.levelStr === config.LOG_DEBUG) {
         return;
       }
 

@@ -12,6 +12,7 @@ performance/temp*.html
 angular.js.tmproj
 node_modules/
 angular.xcodeproj
+.firebase/
 .idea
 *.iml
 .agignore
@@ -22,3 +23,5 @@ npm-debug.log
 .vscode
 *.log
 *.stackdump
+scripts/docs.angularjs.org-firebase/functions/content
+/firebase.json

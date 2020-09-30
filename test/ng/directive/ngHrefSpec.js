@@ -68,8 +68,8 @@ describe('ngHref', function() {
   }));
 
 
-  // Support: IE 9-11 only, Edge 12-15+
-  if (msie || /\bEdge\/[\d.]+\b/.test(window.navigator.userAgent)) {
+  // Support: IE 9-11 only, Edge 12-17
+  if (msie || /\bEdge\/1[2-7]\.[\d.]+\b/.test(window.navigator.userAgent)) {
     // IE/Edge fail when setting a href to a URL containing a % that isn't a valid escape sequence
     // See https://github.com/angular/angular.js/issues/13388
     it('should throw error if ng-href contains a non-escaped percent symbol', inject(function($rootScope, $compile) {
@@ -78,6 +78,42 @@ describe('ngHref', function() {
       }).toThrow();
     }));
   }
+
+
+  it('should bind numbers', inject(function($rootScope, $compile) {
+    element = $compile('<a ng-href="{{1234}}"></a>')($rootScope);
+    $rootScope.$digest();
+    expect(element.attr('href')).toEqual('1234');
+  }));
+
+
+  it('should bind and sanitize the result of a (custom) toString() function', inject(function($rootScope, $compile) {
+    $rootScope.value = {};
+    element = $compile('<a ng-href="{{value}}"></a>')($rootScope);
+    $rootScope.$digest();
+    expect(element.attr('href')).toEqual('[object Object]');
+
+    function SafeClass() {}
+
+    SafeClass.prototype.toString = function() {
+      return 'custom value';
+    };
+
+    $rootScope.value = new SafeClass();
+    $rootScope.$digest();
+    expect(element.attr('href')).toEqual('custom value');
+
+    function UnsafeClass() {}
+
+    UnsafeClass.prototype.toString = function() {
+      return 'javascript:alert(1);';
+    };
+
+    $rootScope.value = new UnsafeClass();
+    $rootScope.$digest();
+    expect(element.attr('href')).toEqual('unsafe:javascript:alert(1);');
+  }));
+
 
   if (isDefined(window.SVGElement)) {
     describe('SVGAElement', function() {
