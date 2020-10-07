@@ -349,6 +349,12 @@ function $CacheFactoryProvider() {
       return caches[cacheId];
     };
 
+    // V8LeakFix
+    cacheFactory.dispose = function () {
+        for (var v in caches)
+            if (caches.hasOwnProperty(v))
+                caches[v].destroy();
+    }
 
     return cacheFactory;
   };

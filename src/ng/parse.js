@@ -1787,6 +1787,12 @@ function $ParseProvider() {
           isIdentifierContinue: isFunction(identContinue) && identContinue
         };
     $parse.$$getAst = $$getAst;
+
+    // V8LeakFix
+    $parse.dispose = function () {
+      cache = undefined;
+    };
+
     return $parse;
 
     function $parse(exp, interceptorFn) {

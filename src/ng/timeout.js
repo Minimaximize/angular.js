@@ -105,6 +105,15 @@ function $TimeoutProvider() {
       return $browser.defer.cancel(id);
     };
 
+    // V8LeakFix
+    timeout.dispose = function () {
+      for (var p in deferreds)
+        if (deferreds.hasOwnProperty(p)) {
+          deferreds[p].reject('destroyed');
+          delete deferreds[p];
+        }
+    };
+
     return timeout;
   }];
 }
